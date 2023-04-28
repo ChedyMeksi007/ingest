@@ -42,7 +42,19 @@ func (p *pluginSource) Server(mb *hplugin.MuxBroker) (interface{}, error) {
 }
 
 func (p *pluginSource) Client(mb *hplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
-	return &pluginSourceRPC{client: c, mb: mb}, nil
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
+	var g prometheus.Gatherer = reg
+	if p.g != nil {
+		g = prometheus.Gatherers{g, p.g}
+	}
+	
+	return &newInstrumentedpluginSourceRPC(&plugininSourceRPC{client: c, mb: mb}, reg), nil
 }
 
 type pluginDestination struct {
@@ -53,7 +65,19 @@ type pluginDestination struct {
 }
 
 func (p *pluginDestination) Client(mb *hplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
-	return &pluginDestinationRPC{client: c, mb: mb}, nil
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
+	var g prometheus.Gatherer = reg
+	if p.g != nil {
+		g = prometheus.Gatherers{g, p.g}
+	}
+
+	return &newInstrumentedpluginDestinationRPC(&pluginDestinationRPC{client: c, mb: mb}, reg), nil
 }
 
 func (p *pluginDestination) Server(mb *hplugin.MuxBroker) (interface{}, error) {
