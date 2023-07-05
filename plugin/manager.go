@@ -52,7 +52,7 @@ func (pm *PluginManager) Gather() ([]*dto.MetricFamily, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(m)
+
 	all := make([][]*dto.MetricFamily, len(pm.sources)+len(pm.destinations))
 	for i := range pm.sources {
 		i := i
@@ -146,7 +146,7 @@ func (pm *PluginManager) NewSource(path string, config map[string]any, labels pr
 	pm.m.Lock()
 	defer pm.m.Unlock()
 
-	c := client(path, pm.reg)
+	c := client(path, prometheus.WrapRegistererWith(labels, pm.reg))
 	cp, err := c.Client()
 	if err != nil {
 		c.Kill()
@@ -238,7 +238,7 @@ func (pm *PluginManager) Watch(ctx context.Context) error {
 	}
 }
 
-func client(path string, reg *prometheus.Registry) *hplugin.Client {
+func client(path string, reg prometheus.Registerer) *hplugin.Client {
 	handshakeConfig := hplugin.HandshakeConfig{
 		ProtocolVersion:  PluginMagicProtocalVersion,
 		MagicCookieKey:   PluginMagicCookieKey,
@@ -253,8 +253,8 @@ func client(path string, reg *prometheus.Registry) *hplugin.Client {
 	})
 
 	pluginMap := map[string]hplugin.Plugin{
-		"destination": &pluginDestination{g: reg},
-		"source":      &pluginSource{r: reg},
+		"destination": &pluginDestination{r: prometheus.WrapRegistererWith(prometheus.Labels{"todo": "dest", "path": path}, reg)},
+		"source":      &pluginSource{r: prometheus.WrapRegistererWith(prometheus.Labels{"todo": "source", "path": path}, reg)},
 	}
 
 	return hplugin.NewClient(&hplugin.ClientConfig{

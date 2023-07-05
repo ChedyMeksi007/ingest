@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,15 +28,14 @@ func newInstrumentedPluginSourceRPC(serv *pluginSourceRPC, reg prometheus.Regist
 		ConstLabels: map[string]string{},
 	}, []string{"rpc_method", "result"})
 	reg.MustRegister(cv)
-	fmt.Println("hey ......")
 	return &instrumentedPluginSourceRPC{pluginSourceRPC: serv, cv: cv}
 }
 func newInstrumentedPluginDestinationRPC(serv *pluginDestinationRPC, reg prometheus.Registerer) *instrumentedPluginDestinationRPC {
 	cv := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "plugin_rpc_calls_total",
+		Name: "plugin_rpc_calls_total_dest",
 		Help: "The total number of rpc calls",
 	}, []string{"rpc_method", "result"})
-	reg.MustRegister(cv)
+	//reg.MustRegister(cv)
 	return &instrumentedPluginDestinationRPC{pluginDestinationRPC: serv, cv: cv}
 }
 

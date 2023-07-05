@@ -1,15 +1,14 @@
 package main
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-
 	iplugin "github.com/connylabs/ingest/plugin"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func main() {
 	reg := prometheus.NewRegistry()
 	c := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name:        "noop",
+		Name:        "noop_metrics",
 		Help:        "show that the noop plugin can add its own collectors",
 		ConstLabels: prometheus.Labels{"noop": "noop"},
 	})
