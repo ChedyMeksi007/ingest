@@ -148,8 +148,7 @@ lint-go: $(GOLANGCI_LINT_BINARY)
 	fi
 
 
-test: $(PLUGINS)
-	E2E=$(E2E) go test ./...
+test: $(PLUGIN)	E2E=$(E2E) go test ./...
 
 vendor:
 	go mod tidy

@@ -26,13 +26,14 @@ func NewPluginManager(i time.Duration, l log.Logger) *PluginManager {
 	return &PluginManager{
 		Interval: i,
 		l:        l,
+		reg:      prometheus.NewRegistry(),
 	}
 }
 
 // PluginManager can start new plugins watch and kill all plugins.
 type PluginManager struct {
-	Interval time.Duration
-
+	Interval     time.Duration
+	reg          *prometheus.Registry
 	sources      []withClient[Source]
 	destinations []withClient[Destination]
 	l            log.Logger
@@ -47,7 +48,11 @@ func (pm *PluginManager) Gather() ([]*dto.MetricFamily, error) {
 	g := multierror.Group{}
 	pm.m.Lock()
 	defer pm.m.Unlock()
-
+	m, err := pm.reg.Gather()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(m)
 	all := make([][]*dto.MetricFamily, len(pm.sources)+len(pm.destinations))
 	for i := range pm.sources {
 		i := i
@@ -106,7 +111,7 @@ func (pm *PluginManager) Gather() ([]*dto.MetricFamily, error) {
 	for _, m := range all {
 		merged = append(merged, m...)
 	}
-	return merged, g.Wait().ErrorOrNil()
+	return append(merged, m...), g.Wait().ErrorOrNil()
 }
 
 // NewDestination returns a new Destination interface from a plugin path and configuration.
@@ -114,7 +119,7 @@ func (pm *PluginManager) NewDestination(path string, config map[string]any, labe
 	pm.m.Lock()
 	defer pm.m.Unlock()
 
-	c := client(path)
+	c := client(path, pm.reg)
 	cp, err := c.Client()
 	if err != nil {
 		c.Kill()
@@ -141,7 +146,7 @@ func (pm *PluginManager) NewSource(path string, config map[string]any, labels pr
 	pm.m.Lock()
 	defer pm.m.Unlock()
 
-	c := client(path)
+	c := client(path, pm.reg)
 	cp, err := c.Client()
 	if err != nil {
 		c.Kill()
@@ -222,7 +227,6 @@ func (pm *PluginManager) Watch(ctx context.Context) error {
 					return nil
 				})
 			}
-
 			level.Debug(pm.l).Log("msg", "successfully pinged all plugins", "duration", time.Since(start), "source plugins", len(pm.sources), "destination plugins", len(pm.destinations))
 
 			err := g.Wait().ErrorOrNil()
@@ -234,7 +238,7 @@ func (pm *PluginManager) Watch(ctx context.Context) error {
 	}
 }
 
-func client(path string) *hplugin.Client {
+func client(path string, reg *prometheus.Registry) *hplugin.Client {
 	handshakeConfig := hplugin.HandshakeConfig{
 		ProtocolVersion:  PluginMagicProtocalVersion,
 		MagicCookieKey:   PluginMagicCookieKey,
@@ -249,8 +253,8 @@ func client(path string) *hplugin.Client {
 	})
 
 	pluginMap := map[string]hplugin.Plugin{
-		"destination": &pluginDestination{},
-		"source":      &pluginSource{},
+		"destination": &pluginDestination{g: reg},
+		"source":      &pluginSource{r: reg},
 	}
 
 	return hplugin.NewClient(&hplugin.ClientConfig{

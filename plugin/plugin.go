@@ -8,6 +8,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	hplugin "github.com/hashicorp/go-plugin"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 
 	"github.com/connylabs/ingest"
 	"github.com/connylabs/ingest/storage"
@@ -32,6 +33,7 @@ type Destination interface {
 
 type pluginSource struct {
 	impl Source
+	r    prometheus.Registerer
 	g    prometheus.Gatherer
 	l    hclog.Logger
 	ctx  context.Context
@@ -53,8 +55,7 @@ func (p *pluginSource) Client(mb *hplugin.MuxBroker, c *rpc.Client) (interface{}
 	if p.g != nil {
 		g = prometheus.Gatherers{g, p.g}
 	}
-	
-	return &newInstrumentedpluginSourceRPC(&plugininSourceRPC{client: c, mb: mb}, reg), nil
+	return newInstrumentedPluginSourceRPC(&pluginSourceRPC{client: c, mb: mb}, reg), nil
 }
 
 type pluginDestination struct {
@@ -77,7 +78,7 @@ func (p *pluginDestination) Client(mb *hplugin.MuxBroker, c *rpc.Client) (interf
 		g = prometheus.Gatherers{g, p.g}
 	}
 
-	return &newInstrumentedpluginDestinationRPC(&pluginDestinationRPC{client: c, mb: mb}, reg), nil
+	return newInstrumentedPluginDestinationRPC(&pluginDestinationRPC{client: c, mb: mb}, reg), nil
 }
 
 func (p *pluginDestination) Server(mb *hplugin.MuxBroker) (interface{}, error) {
